@@ -1,0 +1,6 @@
+telemetry.json
+.git
+.gitignore
+Dockerfile
+.prettierignore
+.vscode
