@@ -5,7 +5,11 @@
 Yaygara Telemetry is a lightweight, database-free, privacy-first analytics dashboard designed specifically for the [Yaygara](https://github.com/mertskaplan/yaygara) party game. It allows developers to seamlessly collect, process, and analyze game balance, team performance, and deck satisfaction using flat-file NDJSON logging.
 
 **Live Game:** [yaygara.mertskaplan.com](https://yaygara.mertskaplan.com)
+
 **Live Telemetry:** [lab.mertskaplan.com/yaygara-telemetry](https://lab.mertskaplan.com/yaygara-telemetry)
+
+**Test Telemetry:** [lab.mertskaplan.com/yaygara-telemetry/?test](https://lab.mertskaplan.com/yaygara-telemetry/?test)
+
 
 ## ✨ Key Features
 
@@ -26,7 +30,40 @@ Yaygara Telemetry is a lightweight, database-free, privacy-first analytics dashb
 
 ## 🚀 Getting Started
 
-### 💻 Local Development
+### 🐋 Run with Docker (Recommended)
+
+You can run Yaygara Telemetry directly with Docker for a seamless setup:
+
+1. **Build and run with Docker:**
+   ```bash
+   docker build -t yaygara-telemetry .
+   docker run -d -p 8080:80 --name telemetry -v $(pwd)/telemetry.json:/var/www/html/telemetry.json yaygara-telemetry
+   ```
+
+#### Using Docker Compose
+
+Create or use the existing `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+services:
+  yaygara-telemetry:
+    build: .
+    container_name: yaygara-telemetry
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - ./telemetry.json:/var/www/html/telemetry.json
+    restart: unless-stopped
+```
+
+Then run:
+```bash
+docker-compose up -d
+```
+
+### 💻 Manual Local Development
 
 1. **Clone the repository:**
    ```bash

@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  yaygara-telemetry:
+    build: .
+    container_name: yaygara-telemetry
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      # Persistent storage for telemetry data
+      - ./telemetry.json:/var/www/html/telemetry.json
+    restart: unless-stopped
