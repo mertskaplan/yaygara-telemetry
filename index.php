@@ -5,6 +5,7 @@
     Name: Yaygara Telemetry
     Author: Mert S. Kaplan, mail@mertskaplan.com
     Licence: GNU GPLv3
+    Version: 1.2
     Source: https://github.com/mertskaplan/yaygara-telemetry
 -->
 
@@ -760,19 +761,22 @@
                 'kpi-slowest-sub': 'Kelime başına saniye',
                 'kpi-dominance-label': '🏆 T1 Hakimiyeti',
                 'kpi-dominance-sub': '1. Takımın kazanma oranı',
-                'kpi-45s-label': 'Tur Tahmin Ortalaması',
-                'kpi-45s-sub': 'Tur başına tahmin edilen kelime',
+                'kpi-45s-label': 'Tur Başına Tahmin Ortalaması',
+                'kpi-45s-sub': 'Toplam sürede tüm turlar için ortalama kelime sayısı',
                 'kpi-easy-45s-label': 'Kolay Deste Tahmin Ortalaması',
                 'kpi-medium-45s-label': 'Orta Deste Tahmin Ortalaması',
                 'kpi-hard-45s-label': 'Zor Deste Tahmin Ortalaması',
+                'diff-sat-easy-label': 'Kolay Deste Memnuniyeti',
+                'diff-sat-medium-label': 'Orta Deste Memnuniyeti',
+                'diff-sat-hard-label': 'Zor Deste Memnuniyeti',
                 'chart-timeline-title': 'Süre Çizgileri (Tahmini / Toplam / Aktif)',
                 'chart-timeline-sub': 'Üç süre metriklerinin tüm destelerdeki karşılaştırması. X-Ekseni: Desteler. Y-Ekseni: Dakika.',
                 'chart-imbalance-title': 'Ortalama Puan Farkı (Dengesizlik Metriği)',
                 'chart-imbalance-sub': 'Deste başına 1. ve 2. takım arasındaki ortalama puan farkı. Puan farkının düşük olması o deste için oyunun dengeli ve rekabetçi olduğunu gösterir.',
                 'chart-delta-title': 'Süre Farkı (Gerçek Süre - Tahmini Süre)',
-                'chart-delta-sub': 'Gerçek oyun süresi ile başlangıçtaki tahmini süre arasındaki sapma farkı. Bu verinin 0\'a yakın olması destenin zorluk derecesinin doğru tahin edildiğini gösterir.',
+                'chart-delta-sub': 'Gerçek oyun süresi ile başlangıçtaki tahmini süre arasındaki sapma farkı. Bu verinin 0\'a yakın olması destenin zorluk derecesinin doğru tahmin edildiğini gösterir.',
                 'chart-focus-title': 'Etkileşim Odağı (Aktif / Toplam %)',
-                'chart-focus-sub': 'Oyun sürenin ne kadarının aktif kelime anlatma sırasında geçtiğini gösteren yüzdelik oran. Bu veri kelime destesinin ne kadar sürelik tartışmalara neden olduğunu gösterebilir.',
+                'chart-focus-sub': 'Oyun süresinin ne kadarının aktif kelime anlatma sırasında geçtiğini gösteren yüzdelik oran. Bu veri kelime destesinin ne kadar sürelik tartışmalara neden olduğunu gösterebilir.',
                 'chart-winrate-title': 'İlk Başlayan Avantajı (Kazanma Oranı)',
                 'chart-winrate-sub': 'Toplam takım sayısına ve başlangıç pozisyonuna göre takımların kazanma yüzdeleri. Oyuna başlayan takımın kazanma yüzdesi yüksekse oyun mekaniğinin adil olmadığı söylenebilir.',
                 'chart-pop-title': 'Deste Popülerliği (Toplam Oyun)',
@@ -830,11 +834,14 @@
                 'kpi-slowest-sub': 'Seconds per word',
                 'kpi-dominance-label': '🏆 T1 Dominance',
                 'kpi-dominance-sub': 'Win rate of Team 1',
-                'kpi-45s-label': '🎯 45-Second Turn Avgs',
-                'kpi-45s-sub': 'Guessed words per turn',
+                'kpi-45s-label': 'Turn Avgs',
+                'kpi-45s-sub': 'Average words across all rounds in total time',
                 'kpi-easy-45s-label': 'Easy Deck Avgs',
                 'kpi-medium-45s-label': 'Medium Deck Avgs',
                 'kpi-hard-45s-label': 'Hard Deck Avgs',
+                'diff-sat-easy-label': 'Easy Deck Satisfaction',
+                'diff-sat-medium-label': 'Medium Deck Satisfaction',
+                'diff-sat-hard-label': 'Hard Deck Satisfaction',
                 'chart-timeline-title': 'Duration Timelines (Estimated vs Total vs Active)',
                 'chart-timeline-sub': 'Comparing the three duration metrics across all decks simultaneously. X-Axis: Decks. Y-Axis: Minutes.',
                 'chart-imbalance-title': 'Average Points Gap (Imbalance Metric)',
@@ -886,6 +893,11 @@
         let currentLang = localStorage.getItem('yaygara-lang') || 'tr';
         let charts = {};
 
+        const cleanDeckName = (name) => {
+            if (!name) return 'N/A';
+            return name.replace(/\.(tr|en)?\.json$/, '').toLowerCase().replace(/-/g, ' ');
+        };
+
         function updateLanguageUI(lang) {
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
@@ -925,16 +937,17 @@
             const winRates = { 2: [0, 0], 3: [0, 0, 0], 4: [0, 0, 0, 0] };
             const totalGames = { 2: 0, 3: 0, 4: 0 };
 
-            // Global Trackers for 45s turn metric
+            // Global Trackers for metric calculations
             let globalTotalWords = 0;
             let globalActiveDurationMin = 0;
+            let globalTotalDurationMin = 0;
             let estPlayersMin = 0;
             let estPlayersMax = 0;
 
             const diffStats = {
-                easy: { totalWords: 0, activeDur: 0, likes: 0, dislikes: 0 },
-                medium: { totalWords: 0, activeDur: 0, likes: 0, dislikes: 0 },
-                hard: { totalWords: 0, activeDur: 0, likes: 0, dislikes: 0 }
+                easy: { totalWords: 0, totalDur: 0, likes: 0, dislikes: 0 },
+                medium: { totalWords: 0, totalDur: 0, likes: 0, dislikes: 0 },
+                hard: { totalWords: 0, totalDur: 0, likes: 0, dislikes: 0 }
             };
 
             const langStats = { tr: 0, en: 0, other: 0 };
@@ -962,7 +975,7 @@
 
                 if (diffStats[difficulty]) {
                     diffStats[difficulty].totalWords += session.total_words_played;
-                    diffStats[difficulty].activeDur += session.duration_active_min;
+                    diffStats[difficulty].totalDur += session.duration_total_min;
                 }
 
                 if (session.liked === true) {
@@ -991,12 +1004,13 @@
 
                 globalTotalWords += session.total_words_played;
                 globalActiveDurationMin += session.duration_active_min;
+                globalTotalDurationMin += session.duration_total_min;
 
                 if (session.scores && session.scores.length >= 2) {
                     const teamCount = session.scores.length;
 
-                    if (teamCount === 2) { estPlayersMin += 4; estPlayersMax += 6; }
-                    else if (teamCount === 3) { estPlayersMin += 6; estPlayersMax += 12; }
+                    if (teamCount === 2) { estPlayersMin += 4; estPlayersMax += 12; }
+                    else if (teamCount === 3) { estPlayersMin += 6; estPlayersMax += 15; }
                     else if (teamCount >= 4) { estPlayersMin += 12; estPlayersMax += 16; }
 
                     let maxScore = -1; let winningIndex = -1;
@@ -1031,7 +1045,7 @@
 
             window.lastProcessedData = {
                 deckStats, diffStats, winRates, totalGames, decks,
-                globalTotalWords, globalActiveDurationMin, totalGamesCount: rawData.length,
+                globalTotalWords, globalActiveDurationMin, globalTotalDurationMin, totalGamesCount: rawData.length,
                 estPlayersMin, estPlayersMax, langStats, timeTrendStats
             };
 
@@ -1041,7 +1055,7 @@
         }
 
         function updateKPIs(data, lang) {
-            const { deckStats, diffStats, winRates, totalGames, decks, globalTotalWords, globalActiveDurationMin, totalGamesCount, estPlayersMin, estPlayersMax } = data;
+            const { deckStats, diffStats, winRates, totalGames, decks, globalTotalWords, globalActiveDurationMin, globalTotalDurationMin, totalGamesCount, estPlayersMin, estPlayersMax } = data;
             const t = translations[lang];
 
             document.getElementById('kpi-total-games').innerText = totalGamesCount;
@@ -1050,17 +1064,17 @@
             document.getElementById('kpi-total-players').innerText = estPlayersMin + " - " + estPlayersMax;
 
             const avgScoreGaps = decks.map(d => parseFloat((deckStats[d].scoreGapSum / deckStats[d].count).toFixed(1)));
-            const wordPaces = decks.map(d => parseFloat(((deckStats[d].active_dur * 60) / deckStats[d].totalWords).toFixed(1)));
+            const wordPaces = decks.map(d => deckStats[d].totalWords > 0 ? parseFloat(((deckStats[d].active_dur * 60) / (deckStats[d].totalWords * 3)).toFixed(1)) : 0);
 
             // --- Smart KPIs ---
             let maxGapIndex = 0; let maxGap = 0;
             avgScoreGaps.forEach((gap, i) => { if (gap > maxGap) { maxGap = gap; maxGapIndex = i; } });
-            document.getElementById('kpi-imbalance-deck').innerText = decks.length > 0 ? decks[maxGapIndex].replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ') : 'N/A';
+            document.getElementById('kpi-imbalance-deck').innerText = decks.length > 0 ? cleanDeckName(decks[maxGapIndex]) : 'N/A';
             document.getElementById('kpi-imbalance-val').innerText = maxGap + " " + t['points-gap'];
 
             let maxPaceIndex = 0; let maxPace = 0;
             wordPaces.forEach((pace, i) => { if (pace > maxPace) { maxPace = pace; maxPaceIndex = i; } });
-            document.getElementById('kpi-slowest-deck').innerText = decks.length > 0 ? decks[maxPaceIndex].replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ') : 'N/A';
+            document.getElementById('kpi-slowest-deck').innerText = decks.length > 0 ? cleanDeckName(decks[maxPaceIndex]) : 'N/A';
             document.getElementById('kpi-slowest-val').innerText = maxPace + " " + t['sec-word'];
 
             // Team 1 Dominance (First-Mover Advantage) calculation for 2, 3, and 4-team games
@@ -1074,16 +1088,16 @@
                 document.getElementById('kpi-first-mover-multi').innerText = "N/A";
             }
 
-            if (globalActiveDurationMin > 0) {
-                const wordsPer45s = ((globalTotalWords / (globalActiveDurationMin * 60)) * 45).toFixed(1);
-                document.getElementById('kpi-words-45s').innerText = wordsPer45s + " " + t['words'];
+            if (globalTotalDurationMin > 0) {
+                const wordsPerTurn = ((globalTotalWords * 3) / globalTotalDurationMin).toFixed(1);
+                document.getElementById('kpi-words-45s').innerText = wordsPerTurn + " " + t['words'];
             } else { document.getElementById('kpi-words-45s').innerText = "N/A"; }
 
             ['easy', 'medium', 'hard'].forEach(diff => {
                 const stats = diffStats[diff];
                 const el = document.getElementById(`kpi-${diff}-45s`);
-                if (stats && stats.activeDur > 0) {
-                    const val = ((stats.totalWords / (stats.activeDur * 60)) * 45).toFixed(1);
+                if (stats && stats.totalDur > 0) {
+                    const val = ((stats.totalWords * 3) / stats.totalDur).toFixed(1);
                     el.innerText = val + " " + t['words'];
                 } else { el.innerText = "N/A"; }
             });
@@ -1124,7 +1138,7 @@
             charts.timeline = new Chart(ctxTimeline, {
                 type: 'line',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [
                         { label: t['est-dur'], data: avgEstimatedDurs, borderColor: '#38bdf8', borderDash: [5, 5], fill: false, tension: 0.2 },
                         { label: t['total-dur'], data: avgTotalDurs, borderColor: '#fb7185', backgroundColor: 'rgba(251, 113, 133, 0.1)', fill: true, tension: 0.3 },
@@ -1140,7 +1154,7 @@
             charts.gap = new Chart(ctxGap, {
                 type: 'bar',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [{
                         label: t['avg-gap'],
                         data: avgScoreGaps,
@@ -1155,7 +1169,7 @@
             charts.delta = new Chart(ctxDelta, {
                 type: 'bar',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [{
                         label: t['margin-mins'],
                         data: durationDeltas,
@@ -1170,7 +1184,7 @@
             charts.focus = new Chart(ctxFocus, {
                 type: 'bar',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [{
                         label: t['active-percent'],
                         data: focusRatios,
@@ -1201,7 +1215,7 @@
             charts.pop = new Chart(ctxPop, {
                 type: 'doughnut',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [{
                         data: deckPlayCounts,
                         backgroundColor: ['#38bdf8', '#818cf8', '#10b981', '#fb7185', '#f59e0b', '#a78bfa', '#ec4899', '#14b8a6'],
@@ -1305,7 +1319,7 @@
             charts.passRate = new Chart(ctxPass, {
                 type: 'bar',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [{
                         label: t['chart-pass-title'],
                         data: passRates,
@@ -1322,7 +1336,7 @@
             charts.undoRate = new Chart(ctxUndo, {
                 type: 'bar',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [{
                         label: t['chart-undo-title'],
                         data: undoRates,
@@ -1335,7 +1349,7 @@
 
             // Difficulty Satisfaction (Stacked Bar)
             const diffTypes = ['easy', 'medium', 'hard'];
-            const diffLabels = [t['kpi-easy-45s-label'], t['kpi-medium-45s-label'], t['kpi-hard-45s-label']];
+            const diffLabels = [t['diff-sat-easy-label'], t['diff-sat-medium-label'], t['diff-sat-hard-label']];
             const diffLikes = diffTypes.map(df => data.diffStats[df] ? data.diffStats[df].likes : 0);
             const diffDislikes = diffTypes.map(df => data.diffStats[df] ? data.diffStats[df].dislikes : 0);
 
@@ -1356,7 +1370,7 @@
             charts.sat = new Chart(ctxSat, {
                 type: 'bar',
                 data: {
-                    labels: decks.map(d => d.replace('.tr', '').replace('.en', '').toLowerCase().replace(/-/g, ' ')),
+                    labels: decks.map(d => cleanDeckName(d)),
                     datasets: [
                         { label: t['likes'], data: deckLikes, backgroundColor: '#10b981' },
                         { label: t['dislikes'], data: deckDislikes, backgroundColor: '#fb7185' }

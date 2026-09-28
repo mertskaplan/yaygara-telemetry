@@ -3,6 +3,7 @@
  *  Name: Yaygara Telemetry
  *  Author: Mert S. Kaplan, mail@mertskaplan.com
  *  Licence: GNU GPLv3
+ *  Version: 1.2
  *  Source: https://github.com/mertskaplan/yaygara-telemetry
  **/
 
@@ -27,6 +28,7 @@ if (in_array($requestOrigin, $allowedOrigins)) {
 
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json; charset=utf-8");
 
 // Preflight request handling
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -48,7 +50,19 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 // We'll also check Referer if Origin is missing.
 $referer = $_SERVER['HTTP_REFERER'] ?? '';
 
-if (strpos($origin, 'yaygara.mertskaplan.com') === false && strpos($referer, 'yaygara.mertskaplan.com') === false) {
+$isAllowed = false;
+foreach ($allowedOrigins as $allowedUrl) {
+    $allowedHost = parse_url($allowedUrl, PHP_URL_HOST) ?: $allowedUrl;
+    if (
+        (!empty($origin) && strpos($origin, $allowedHost) !== false) ||
+        (!empty($referer) && strpos($referer, $allowedHost) !== false)
+    ) {
+        $isAllowed = true;
+        break;
+    }
+}
+
+if (!$isAllowed) {
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: Origin not allowed']);
     exit;
@@ -74,3 +88,4 @@ file_put_contents($storageFile, $jsonData, FILE_APPEND | LOCK_EX);
 
 http_response_code(202);
 echo json_encode(['message' => 'Telemetry data accepted']);
+exit;
